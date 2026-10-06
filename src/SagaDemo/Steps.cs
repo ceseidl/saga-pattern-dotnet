@@ -2,8 +2,10 @@ using System.Collections.Concurrent;
 
 namespace SagaDemo;
 
-// Cada passo seria uma chamada a outro microsserviço (HTTP ou mensagem).
-// Aqui são simulados em memória; a chave de idempotência é o OrderId.
+// EN: Each step would be a call to another microservice (HTTP or message).
+// PT: Cada passo seria uma chamada a outro microsserviço (HTTP ou mensagem).
+// EN: Here they are simulated in memory; the idempotency key is the OrderId.
+// PT: Aqui são simulados em memória; a chave de idempotência é o OrderId.
 public sealed class ReserveStockStep : ISagaStep
 {
     private readonly ConcurrentDictionary<Guid, bool> _reservations = new();
@@ -11,13 +13,17 @@ public sealed class ReserveStockStep : ISagaStep
 
     public Task ExecuteAsync(OrderContext ctx, CancellationToken ct)
     {
-        _reservations[ctx.OrderId] = true;   // upsert: repetir não duplica
+        // EN: Upsert: repeating does not duplicate.
+        // PT: Upsert: repetir não duplica.
+        _reservations[ctx.OrderId] = true;
         return Task.CompletedTask;
     }
 
     public Task CompensateAsync(OrderContext ctx, CancellationToken ct)
     {
-        _reservations.TryRemove(ctx.OrderId, out _);   // remover o que não existe é no-op
+        // EN: Removing what does not exist is a no-op.
+        // PT: Remover o que não existe é no-op.
+        _reservations.TryRemove(ctx.OrderId, out _);
         return Task.CompletedTask;
     }
 }
@@ -30,14 +36,18 @@ public sealed class AuthorizePaymentStep(bool failOnExecute) : ISagaStep
     public Task ExecuteAsync(OrderContext ctx, CancellationToken ct)
     {
         if (failOnExecute)
-            throw new InvalidOperationException("Cartão recusado");
-        _authorizations.TryAdd(ctx.OrderId, ctx.Total);   // não cobra duas vezes o mesmo pedido
+            throw new InvalidOperationException("Card declined / Cartão recusado");
+        // EN: Does not charge the same order twice.
+        // PT: Não cobra duas vezes o mesmo pedido.
+        _authorizations.TryAdd(ctx.OrderId, ctx.Total);
         return Task.CompletedTask;
     }
 
     public Task CompensateAsync(OrderContext ctx, CancellationToken ct)
     {
-        _authorizations.TryRemove(ctx.OrderId, out _);   // cancelar a autorização
+        // EN: Cancel the authorization.
+        // PT: Cancelar a autorização.
+        _authorizations.TryRemove(ctx.OrderId, out _);
         return Task.CompletedTask;
     }
 }

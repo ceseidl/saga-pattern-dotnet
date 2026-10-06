@@ -19,13 +19,15 @@ async Task<SagaOutcome> Run(bool paymentFails)
     return await orchestrator.RunAsync(new OrderContext(Guid.NewGuid(), "cli-42", 199.90m));
 }
 
-Console.WriteLine($"Fluxo feliz    -> {await Run(paymentFails: false)}");
-Console.WriteLine($"Fluxo de falha -> {await Run(paymentFails: true)}");
+Console.WriteLine($"Happy path / Fluxo feliz -> {await Run(paymentFails: false)}");
+Console.WriteLine($"Failure path / Fluxo de falha -> {await Run(paymentFails: true)}");
 
 var inbox = new InboxStore();
 var consumer = new StockConsumer(inbox, new ReserveStockStep());
 var msg = new SagaMessage(Guid.NewGuid(), Guid.NewGuid(), "ReservarEstoque");
 var octx = new OrderContext(Guid.NewGuid(), "cli-42", 10m);
 await consumer.HandleAsync(msg, octx, CancellationToken.None);
-await consumer.HandleAsync(msg, octx, CancellationToken.None); // reentrega
-Console.WriteLine($"Inbox: segunda entrega ignorada = {!inbox.TryClaim("estoque", msg.MessageId)}");
+// EN: Redelivery of the same message.
+// PT: Reentrega da mesma mensagem.
+await consumer.HandleAsync(msg, octx, CancellationToken.None);
+Console.WriteLine($"Inbox: second delivery ignored / segunda entrega ignorada = {!inbox.TryClaim("estoque", msg.MessageId)}");

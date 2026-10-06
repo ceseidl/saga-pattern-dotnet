@@ -25,13 +25,13 @@ public sealed class OrderSagaOrchestrator(
         {
             try
             {
-                logger.LogInformation("[{Order}] executando {Step}", ctx.OrderId, step.Name);
+                logger.LogInformation("[{Order}] executing / executando {Step}", ctx.OrderId, step.Name);
                 await step.ExecuteAsync(ctx, ct);
                 completed.Push(step);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogWarning(ex, "[{Order}] {Step} falhou; iniciando compensação", ctx.OrderId, step.Name);
+                logger.LogWarning(ex, "[{Order}] {Step} failed; starting compensation / falhou; iniciando compensação", ctx.OrderId, step.Name);
                 return await CompensateAsync(ctx, completed, ct);
             }
         }
@@ -44,7 +44,8 @@ public sealed class OrderSagaOrchestrator(
     {
         var allOk = true;
 
-        // Ordem inversa: o último passo concluído é o primeiro a ser desfeito
+        // EN: Reverse order: the last completed step is the first to be undone.
+        // PT: Ordem inversa: o último passo concluído é o primeiro a ser desfeito.
         while (completed.TryPop(out var step))
         {
             var ok = false;
@@ -52,13 +53,15 @@ public sealed class OrderSagaOrchestrator(
             {
                 try
                 {
-                    await step.CompensateAsync(ctx, ct); // precisa ser idempotente
+                    // EN: Must be idempotent.
+                    // PT: Precisa ser idempotente.
+                    await step.CompensateAsync(ctx, ct);
                     ok = true;
-                    logger.LogInformation("[{Order}] compensado {Step}", ctx.OrderId, step.Name);
+                    logger.LogInformation("[{Order}] compensated / compensado {Step}", ctx.OrderId, step.Name);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    logger.LogWarning(ex, "[{Order}] compensação de {Step} falhou ({Attempt}/{Max})",
+                    logger.LogWarning(ex, "[{Order}] compensation of {Step} failed / compensação falhou ({Attempt}/{Max})",
                         ctx.OrderId, step.Name, attempt, MaxCompensationAttempts);
                     await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt), ct);
                 }
@@ -67,7 +70,7 @@ public sealed class OrderSagaOrchestrator(
             if (!ok)
             {
                 allOk = false;
-                logger.LogError("[{Order}] compensação de {Step} esgotou tentativas: intervenção manual",
+                logger.LogError("[{Order}] compensation of {Step} exhausted retries: manual intervention / compensação esgotou tentativas: intervenção manual",
                     ctx.OrderId, step.Name);
             }
         }

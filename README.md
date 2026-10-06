@@ -1,36 +1,40 @@
-# Saga Pattern em .NET
+English | [Português](README.pt-BR.md)
 
-Exemplo didático do **Saga Pattern** com orquestração e compensação em C#/.NET 10, sem dependências externas. Acompanha o artigo *Saga Pattern em .NET: Transações Distribuídas entre Microsserviços*, da série **Arquitetura .NET**.
+# Saga Pattern in .NET
 
-> Código de estudo. Os "serviços" são simulados em memória e o estado da saga **não é persistido**. Veja [Limitações](#limitações).
+A didactic example of the **Saga Pattern** with orchestration and compensation in C#/.NET 10, with no external dependencies. It accompanies the article *Saga Pattern em .NET: Transações Distribuídas entre Microsserviços* (Portuguese), from the **Arquitetura .NET** series.
 
-## O problema
+> Study code. The "services" are simulated in memory and the saga state is **not persisted**. See [Limitations](#limitations).
 
-No monólito, "criar pedido" cabe em uma transação: reservar estoque, cobrar e gerar a entrega, com `COMMIT` ou `ROLLBACK`. Ao dividir em microsserviços, cada serviço tem seu próprio banco e essa transação única deixa de existir. Se o estoque foi reservado e o pagamento foi recusado, alguém precisa desfazer a reserva.
+## The problem
 
-O Saga Pattern resolve isso **sem transação distribuída**: quebra a operação em **transações locais** e, se uma falhar, executa **transações compensatórias** nos passos já concluídos.
+In a monolith, "create order" fits in a single transaction: reserve stock, charge the customer and create the shipment, with `COMMIT` or `ROLLBACK`. When you split into microservices, each service owns its database and that single transaction no longer exists. If stock was reserved and the payment was declined, someone has to undo the reservation.
 
-## O que o exemplo mostra
+The Saga Pattern solves this **without a distributed transaction**: it breaks the operation into **local transactions** and, if one fails, runs **compensating transactions** on the steps that already completed.
 
-- **Orquestração**: um orquestrador executa os passos em ordem e, na primeira falha, compensa os passos concluídos **em ordem inversa**.
-- **Compensação com retentativa**: cada compensação tenta até 3 vezes. Se esgotar, o resultado é `CompensationFailed` (alerta e intervenção manual).
-- **Passos idempotentes**: executar ou compensar duas vezes tem o mesmo efeito de uma (chave: `OrderId`).
-- **Consumidor idempotente (Inbox)**: uma mensagem entregue duas vezes é processada uma só.
+## What the example shows
 
-## Estrutura
+- **Orchestration**: an orchestrator runs the steps in order and, on the first failure, compensates the completed steps **in reverse order**.
+- **Compensation with retries**: each compensation is attempted up to 3 times. If it runs out of attempts, the result is `CompensationFailed` (alert and manual intervention).
+- **Idempotent steps**: executing or compensating twice has the same effect as once (key: `OrderId`).
+- **Idempotent consumer (Inbox)**: a message delivered twice is processed only once.
+
+## Structure
 
 ```
 src/SagaDemo/
-├── Saga.cs      # contrato do passo (ISagaStep), contexto e orquestrador
+├── Saga.cs      # step contract (ISagaStep), context and orchestrator
 ├── Steps.cs     # ReservarEstoque, AutorizarPagamento, CriarEntrega
-├── Inbox.cs     # InboxStore e StockConsumer (deduplicação por mensagem)
-├── Program.cs   # fluxo feliz, fluxo de falha e mensagem duplicada
+├── Inbox.cs     # InboxStore and StockConsumer (per-message deduplication)
+├── Program.cs   # happy path, failure path and duplicate message
 └── SagaDemo.csproj
 ```
 
-## Como rodar
+Identifiers and step names (`ReservarEstoque`, `AutorizarPagamento`, `CriarEntrega`) are kept in Portuguese, as in the article. In English: reserve stock, authorize payment, create shipment.
 
-Requisito: [.NET 10 SDK](https://dotnet.microsoft.com/download).
+## How to run
+
+Requirement: [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ```bash
 git clone https://github.com/ceseidl/saga-pattern-dotnet.git
@@ -38,24 +42,24 @@ cd saga-pattern-dotnet/src/SagaDemo
 dotnet run
 ```
 
-Saída resumida:
+Summarized output (messages are bilingual, "English / Português"):
 
 ```
-Fluxo feliz    -> Completed
-... AutorizarPagamento falhou; iniciando compensação
-... compensado ReservarEstoque
-Fluxo de falha -> Compensated
-Inbox: segunda entrega ignorada = True
+Happy path / Fluxo feliz -> Completed
+... AutorizarPagamento failed; starting compensation / falhou; iniciando compensação
+... compensated / compensado ReservarEstoque
+Failure path / Fluxo de falha -> Compensated
+Inbox: second delivery ignored / segunda entrega ignorada = True
 ```
 
-O projeto usa o SDK `Microsoft.NET.Sdk.Web` apenas para ter `ILogger` e injeção de dependência no *shared framework* sem baixar pacotes. Em um projeto de console puro, adicione `Microsoft.Extensions.Hosting`.
+The project uses the `Microsoft.NET.Sdk.Web` SDK only to get `ILogger` and dependency injection from the shared framework without downloading packages. In a plain console project, add `Microsoft.Extensions.Hosting`.
 
-## Como funciona
+## How it works
 
-1. O orquestrador percorre os passos e empilha cada um que **concluiu**.
-2. Se um passo lança exceção, o orquestrador desempilha e chama `CompensateAsync` em cada passo concluído (o que falhou não entra na pilha).
-3. Cada compensação é repetida até 3 vezes, com espera crescente.
-4. O resultado é `Completed`, `Compensated` ou `CompensationFailed`.
+1. The orchestrator walks the steps and pushes each one that **completed** onto a stack.
+2. If a step throws, the orchestrator pops the stack and calls `CompensateAsync` on each completed step (the one that failed is not on the stack).
+3. Each compensation is retried up to 3 times, with increasing wait.
+4. The result is `Completed`, `Compensated` or `CompensationFailed`.
 
 ```csharp
 foreach (var step in steps)
@@ -63,7 +67,7 @@ foreach (var step in steps)
     try
     {
         await step.ExecuteAsync(ctx, ct);
-        completed.Push(step);                       // só o concluído entra na pilha
+        completed.Push(step);                       // only the completed step goes on the stack
     }
     catch (Exception ex) when (ex is not OperationCanceledException)
     {
@@ -72,31 +76,31 @@ foreach (var step in steps)
 }
 ```
 
-### Conceitos
+### Concepts
 
-- **Compensável**: pode ser desfeito por uma compensação.
-- **Pivô**: o ponto sem volta. Depois dele, os passos seguintes precisam concluir.
-- **Retentável**: vem depois do pivô, é idempotente e pode ser repetido até dar certo.
-- **Coreografia vs orquestração**: sem controlador central (eventos entre serviços) ou com um orquestrador que dirige o fluxo. Este exemplo usa orquestração.
+- **Compensable**: can be undone by a compensation.
+- **Pivot**: the point of no return. After it, the following steps must complete.
+- **Retriable**: comes after the pivot, is idempotent and can be repeated until it succeeds.
+- **Choreography vs orchestration**: no central controller (events between services) versus an orchestrator that drives the flow. This example uses orchestration.
 
-## Limitações
+## Limitations
 
-Este exemplo existe para mostrar a mecânica. Em produção, falta:
+This example exists to show the mechanics. In production, it lacks:
 
-- **Persistir o estado da saga** a cada transição (hoje, se o processo cair no meio, o estado se perde). Bibliotecas como MassTransit, NServiceBus e Wolverine oferecem isso.
-- **Transactional Outbox**: gravar o estado e a mensagem na mesma transação local e publicar por um processo separado.
-- **Inbox em banco**: o `InboxStore` é em memória. Em produção, use uma tabela com restrição de unicidade, gravada na mesma transação do efeito de negócio.
-- **Timeouts por passo**, **correlação** (logs e traces) e **alertas** para `CompensationFailed`.
-- **Isolamento**: sagas concorrentes enxergam dados intermediários. Contramedidas: *semantic lock*, atualizações comutativas, reler valores, visão pessimista.
-- Decidir explicitamente o que fazer com `OperationCanceledException` (aqui não dispara compensação).
+- **Persisting the saga state** on every transition (today, if the process dies midway, the state is lost). Libraries such as MassTransit, NServiceBus and Wolverine provide this.
+- **Transactional Outbox**: write the state and the message in the same local transaction and publish them from a separate process.
+- **Database-backed Inbox**: `InboxStore` is in memory. In production, use a table with a uniqueness constraint, written in the same transaction as the business effect.
+- **Per-step timeouts**, **correlation** (logs and traces) and **alerts** for `CompensationFailed`.
+- **Isolation**: concurrent sagas see intermediate data. Countermeasures: *semantic lock*, commutative updates, re-reading values, pessimistic view.
+- Explicitly deciding what to do with `OperationCanceledException` (here it does not trigger compensation).
 
-## Quando usar e quando evitar
+## When to use and when to avoid
 
-**Use** quando uma operação passa por vários serviços, cada um com seu banco, e existe uma compensação de negócio por passo.
+**Use** it when an operation spans several services, each with its own database, and there is a business compensation for each step.
 
-**Evite** quando tudo roda em um serviço e um banco, o fluxo tem poucos passos, exige consistência forte e imediata, há ações que não podem ser desfeitas ou o sistema é um CRUD simples.
+**Avoid** it when everything runs in one service and one database, the flow has few steps, it requires strong and immediate consistency, there are actions that cannot be undone, or the system is a simple CRUD.
 
-## Referências
+## References
 
 - Microsoft Learn: [Saga distributed transactions pattern](https://learn.microsoft.com/azure/architecture/patterns/saga)
 - Microsoft Learn: [Compensating Transaction pattern](https://learn.microsoft.com/azure/architecture/patterns/compensating-transaction)
@@ -105,6 +109,6 @@ Este exemplo existe para mostrar a mecânica. Em produção, falta:
 - microservices.io: [Pattern: Saga](https://microservices.io/patterns/data/saga.html)
 - MassTransit: [Saga State Machine](https://masstransit.io/documentation/patterns/saga/state-machine)
 
-## Licença
+## License
 
-[MIT](LICENSE). Autor: Carlos Eduardo Seidl.
+[MIT](LICENSE). Author: Carlos Eduardo Seidl.
