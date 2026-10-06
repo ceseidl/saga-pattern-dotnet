@@ -2,6 +2,15 @@ English | [Português](README.pt-BR.md)
 
 # Saga Pattern in .NET
 
+> **Quick start**
+
+```bash
+cd src/SagaDemo
+dotnet run
+```
+
+Needs only the .NET 10 SDK. Details in [How to run](#how-to-run).
+
 A didactic example of the **Saga Pattern** with orchestration and compensation in C#/.NET 10, with no external dependencies. It accompanies the article *Saga Pattern em .NET: Transações Distribuídas entre Microsserviços* (Portuguese), from the **Arquitetura .NET** series.
 
 > Study code. The "services" are simulated in memory and the saga state is **not persisted**. See [Limitations](#limitations).

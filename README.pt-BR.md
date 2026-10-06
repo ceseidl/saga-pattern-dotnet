@@ -2,6 +2,15 @@
 
 # Saga Pattern em .NET
 
+> **Início rápido**
+
+```bash
+cd src/SagaDemo
+dotnet run
+```
+
+Precisa só do SDK do .NET 10. Detalhes em [Como rodar](#como-rodar).
+
 Exemplo didático do **Saga Pattern** com orquestração e compensação em C#/.NET 10, sem dependências externas. Acompanha o artigo *Saga Pattern em .NET: Transações Distribuídas entre Microsserviços*, da série **Arquitetura .NET**.
 
 > Código de estudo. Os "serviços" são simulados em memória e o estado da saga **não é persistido**. Veja [Limitações](#limitações).
