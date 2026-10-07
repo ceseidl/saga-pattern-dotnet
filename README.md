@@ -34,7 +34,10 @@ The Saga Pattern solves this **without a distributed transaction**: it breaks th
 
 ```
 src/SagaDemo/
-├── Saga.cs      # step contract (ISagaStep), context and orchestrator
+├── Saga.cs      # step contract (ISagaStep), context and outcome
+├── OrderSagaOrchestrator.cs  # execution and reverse-order compensation
+├── StepKinds.cs # compensable, pivot and retriable steps; plan check
+├── Messages.cs  # command (ReserveStock) and event (StockReserved)
 ├── Steps.cs     # ReservarEstoque, AutorizarPagamento, CriarEntrega
 ├── Inbox.cs     # InboxStore and StockConsumer (per-message deduplication)
 ├── Program.cs   # happy path, failure path and duplicate message
@@ -56,6 +59,9 @@ dotnet run
 Summarized output (messages are bilingual, "English / Português"):
 
 ```
+Plan / Plano: True
+Pivot first / Pivô primeiro: False
+Command / Comando: ReserveStock -> StockReserved
 Happy path / Fluxo feliz -> Completed
 ... AutorizarPagamento failed; starting compensation / falhou; iniciando compensação
 ... compensated / compensado ReservarEstoque

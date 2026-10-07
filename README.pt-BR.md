@@ -34,7 +34,10 @@ O Saga Pattern resolve isso **sem transação distribuída**: quebra a operaçã
 
 ```
 src/SagaDemo/
-├── Saga.cs      # contrato do passo (ISagaStep), contexto e orquestrador
+├── Saga.cs      # contrato do passo (ISagaStep), contexto e resultado
+├── OrderSagaOrchestrator.cs  # execução e compensação em ordem inversa
+├── StepKinds.cs # passos compensáveis, pivô e retentáveis; checagem do plano
+├── Messages.cs  # comando (ReserveStock) e evento (StockReserved)
 ├── Steps.cs     # ReservarEstoque, AutorizarPagamento, CriarEntrega
 ├── Inbox.cs     # InboxStore e StockConsumer (deduplicação por mensagem)
 ├── Program.cs   # fluxo feliz, fluxo de falha e mensagem duplicada
@@ -54,6 +57,9 @@ dotnet run
 Saída resumida:
 
 ```
+Plan / Plano: True
+Pivot first / Pivô primeiro: False
+Command / Comando: ReserveStock -> StockReserved
 Happy path / Fluxo feliz -> Completed
 ... AutorizarPagamento failed; starting compensation / falhou; iniciando compensação
 ... compensated / compensado ReservarEstoque
