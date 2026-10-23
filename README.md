@@ -4,6 +4,8 @@ English | [Português](README.pt-BR.md)
 
 # Saga Pattern in .NET
 
+Full article: <https://ceseidl.com.br/en/artigos/saga-pattern-dotnet/>
+
 > **Quick start**
 
 ```bash

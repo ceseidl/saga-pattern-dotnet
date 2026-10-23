@@ -4,6 +4,8 @@
 
 # Saga Pattern em .NET
 
+Artigo completo: <https://ceseidl.com.br/artigos/saga-pattern-dotnet/>
+
 > **Início rápido**
 
 ```bash
